@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SIGA - Sistema Integrado de Gestión Académica</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/siga.css">
+</head>
+<body class="h-screen overflow-hidden flex flex-col md:flex-row bg-gray-50 text-slate-900 font-sans">
+
+    <div id="toast" class="fixed top-5 right-5 bg-slate-900 text-white px-6 py-3 rounded-lg shadow-xl z-50 hidden fade-in text-sm font-medium border border-slate-800">
+        Mensaje
+    </div>
+
+    <div id="modal" class="fixed inset-0 z-40 hidden modal-backdrop flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto border border-gray-200" onclick="event.stopPropagation()">
+            <div id="modalContent"></div>
+        </div>
+    </div>
+
+    <div id="loginScreen" class="fixed inset-0 z-30 login-bg flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 fade-in border border-gray-200">
+            <div class="text-center mb-8">
+                <img src="../src\logo-siga.webp" alt="SIGA Logo" class="w-24 h-24 mx-auto mb-4 object-contain">
+                <h1 class="text-2xl font-bold text-gray-900">SIGA</h1>
+                <p class="text-gray-500 text-sm mt-1">Sistema Integrado de Gestión Académica</p>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">RUT o Correo</label>
+                    <input type="text" id="loginUser" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition" placeholder="ej: admin@siga.cl">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Contraseña</label>
+                    <input type="password" id="loginPass" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition" placeholder="••••••">
+                </div>
+                <div id="loginError" class="text-red-600 text-sm hidden text-center font-medium"></div>
+                <button onclick="doLogin()" class="w-full btn-primary py-3 rounded-lg font-semibold text-sm tracking-wide text-white">INGRESAR AL SISTEMA</button>
+            </div>
+
+            <div class="mt-8 pt-6 border-t border-gray-100">
+                <p class="text-xs text-center text-gray-400 mb-3">Credenciales Demo (Pass: 1234)</p>
+                <div class="grid grid-cols-3 gap-2 text-center text-xs">
+                    <button onclick="fillLogin('admin@siga.cl')" class="p-2 hover:bg-slate-50 rounded border border-transparent hover:border-gray-200 transition text-slate-600 font-medium">🔧 Admin</button>
+                    <button onclick="fillLogin('a.torres@upla.cl')" class="p-2 hover:bg-slate-50 rounded border border-transparent hover:border-gray-200 transition text-slate-600 font-medium">👨‍🏫 Docente</button>
+                    <button onclick="fillLogin('j.perez@email.cl')" class="p-2 hover:bg-slate-50 rounded border border-transparent hover:border-gray-200 transition text-slate-600 font-medium">👨‍👧 Apoderado</button>
+                    <button onclick="fillLogin('inspector@siga.cl')" class="p-2 hover:bg-slate-50 rounded border border-transparent hover:border-gray-200 transition text-slate-600 font-medium">🎓 Inspector</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="app" class="hidden flex-1 flex h-full">
+        <aside class="hidden md:flex flex-col w-64 bg-slate-900 text-slate-100 border-r border-slate-800">
+            <div class="p-6 border-b border-slate-800 flex items-center space-x-3">
+                <img src="../src\logo-siga.webp" alt="SIGA" class="w-10 h-10 object-contain">
+                <div>
+                    <span class="font-bold tracking-tight text-white block">SIGA Portal</span>
+                    <span class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Establecimiento</span>
+                </div>
+            </div>
+            
+            <nav id="navMenu" class="flex-1 p-4 space-y-1 overflow-y-auto scrollbar"></nav>
+            
+            <div class="p-4 border-t border-slate-800 bg-slate-950/40 flex items-center justify-between">
+                <div class="flex items-center space-x-3 overflow-hidden">
+                    <div id="userAvatar" class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shadow-sm">--</div>
+                    <div class="overflow-hidden">
+                        <div id="userName" class="font-semibold text-sm text-white truncate">Usuario</div>
+                        <div id="userRole" class="text-xs text-slate-400 truncate">Rol</div>
+                    </div>
+                </div>
+                <button onclick="logout()" class="text-slate-400 hover:text-rose-400 p-2 rounded-lg transition" title="Cerrar sesión">
+                    ✕
+                </button>
+            </div>
+        </aside>
+
+        <main class="flex-1 flex flex-col min-w-0 bg-slate-50 overflow-hidden">
+            <header class="bg-white border-b border-gray-200 h-16 min-h-16 px-4 md:px-8 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <button onclick="openSidebar()" class="md:hidden text-gray-600 text-xl p-1">☰</button>
+                    <div>
+                        <h2 id="pageTitle" class="font-bold text-gray-900 text-base md:text-lg leading-tight">Cargando...</h2>
+                        <p id="pageSubtitle" class="text-xs text-gray-500 mt-0.5">Vista actual</p>
+                    </div>
+                </div>
+                <div id="currentDate" class="text-xs font-medium text-gray-400 uppercase tracking-wider"></div>
+            </header>
+
+            <div id="content" class="flex-1 overflow-y-auto p-4 md:p-8 scrollbar fade-in"></div>
+        </main>
+    </div>
+
+    <div id="sidebarOverlay" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden" onclick="closeSidebar()"></div>
+    <div id="sidebar" class="fixed top-0 left-0 bottom-0 w-3/4 max-w-xs bg-slate-900 z-50 transform -translate-x-full transition-transform duration-300 md:hidden flex flex-col shadow-2xl border-r border-slate-800">
+        <div class="p-6 border-b border-slate-800 flex justify-between items-center">
+            <span class="font-bold text-lg text-white">Menú SIGA</span>
+            <button onclick="closeSidebar()" class="text-slate-400 text-xl hover:text-white">&times;</button>
+        </div>
+        <nav id="navMenuMobile" class="flex-1 p-4 space-y-1 overflow-y-auto scrollbar"></nav>
+        <div class="p-4 border-t border-slate-800">
+             <button onclick="logout()" class="w-full flex items-center justify-center space-x-2 py-2.5 bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white rounded-lg text-sm font-medium transition duration-150">
+                 <span>✕ Cerrar Sesión</span>
+             </button>
+        </div>
+    </div>
+    
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/siga.js"></script>
+
+</body>
+</html>
